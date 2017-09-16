@@ -5,6 +5,7 @@
 
 #include "frame_source.h"
 #include "state.h"
+#include "predictor.h"
 
 cv::Point2d top_left;
 bool is_second = false;
@@ -42,6 +43,8 @@ void AddInitialBoundingBoxes(const cv::Mat & first_frame, State & state) {
         if (key == 13) break;
     }
 
+    cv::destroyWindow(window_name);
+
     int track_id = 0;
     for (const auto & bb: bounding_boxes) {
         state.AddToCurrentState(bb.tl, bb.br, track_id);
@@ -68,17 +71,28 @@ int main(int argc, char ** argv) {
     State state;
     AddInitialBoundingBoxes(first_frame, state);
 
+    // Setup the predictor
+    Predictor predictor(0.5);
+
     cv::Mat frame;
+    cv::Mat last_frame;
+    first_frame.copyTo(last_frame);
+
     while (frame_source->GetFrame(frame)) {
         // Get the current state (vector of bounding boxes);
         auto cur_state = state.GetState();
-
+        state.Clear();
         for (const auto & bb_info: cur_state) {
             auto track_id = bb_info.first;
             auto bb = bb_info.second;
+            auto bb_predicted = predictor.Predict(last_frame, frame, bb);
+            state.AddToCurrentState(bb_predicted.tl, bb_predicted.br, track_id);
+
+            // Draw the state on the current frame
             const auto color = (track_id == 1) ? cv::Scalar(255, 0, 0) : cv::Scalar(0, 255, 0);
-            cv::rectangle(frame, bb.tl, bb.br, color);
+            cv::rectangle(frame, bb_predicted.tl, bb_predicted.br, color);
         }
+        frame.copyTo(last_frame);
 
         cv::imshow("Frame", frame);
         int key = cv::waitKey(5) & 0xff;

@@ -1,3 +1,6 @@
+#ifndef STATE_H_
+#define STATE_H_
+
 #include <opencv2/opencv.hpp>
 
 struct BoundingBox {
@@ -22,5 +25,11 @@ public:
         state_[track_id] = bounding_box;
     }
 
+    void Clear() {
+        state_.clear();
+    }
+
     std::map<int, BoundingBox> GetState() { return state_;}
 };
+
+#endif
